@@ -38,9 +38,12 @@ def fetch_stock_data(symbol, period="max"):
                     df.columns = df.columns.get_level_values(0)
                 return df, stock.financials, stock.balance_sheet, stock.info, ticker
         except Exception as e:
+            st.warning(f"Deneme başarısız ({ticker}): {str(e)}") # Kullanıcıya hatayı göster
             print(f"Deneme başarısız ({ticker}): {e}")
             continue
             
+    # Hiçbir varyasyon çalışmadıysa
+    st.error("Tüm denemeler başarısız oldu. Lütfen internet bağlantınızı kontrol edin veya daha sonra tekrar deneyin.")
     return None, None, None, None, None
 
 def process_indicators(df):

@@ -42,9 +42,14 @@ if symbol != raw_symbol.upper():
 
 # --- VERİ ÇEKME & İŞLEME ---
 with st.spinner(f"{symbol} verileri çekiliyor..."):
-    df_full, financials, balance, info = data.fetch_stock_data(symbol, period="max")
+    # fetch_stock_data artık 5 değer dönüyor (en sonuncusu bulunan gerçek hisse kodu)
+    df_full, financials, balance, info, found_ticker = data.fetch_stock_data(symbol, period="max")
 
 if df_full is not None:
+    # Kullanıcıya hangi sembolün bulunduğunu göster (örn: THYAO yazdı ama THYAO.IS bulundu)
+    if found_ticker != raw_symbol.upper():
+        st.success(f"Bulunan Sembol: **{found_ticker}**")
+        
     # İndikatörleri Hesapla
     df_full = data.process_indicators(df_full)
     

@@ -6,26 +6,36 @@ from scipy.signal import argrelextrema
 from datetime import timedelta
 import streamlit as st
 
-@st.cache_data(ttl=3600)  # Verileri 1 saat önbelleğe al
-def fetch_stock_data(ticker, period="max"):
+@st.cache_data(ttl=3600)
+def fetch_stock_data(symbol, period="max"):
     """
-    Belirtilen hisse senedi için geçmiş verileri ve temel finansal bilgileri çeker.
+    Hisse verilerini çeker. Akıllı yeniden deneme (retry) mekanizması içerir.
+    Önce verilen sembolü dener, olmazsa .IS ekleyip/çıkarıp tekrar dener.
     """
-    try:
-        stock = yf.Ticker(ticker)
-        df = stock.history(period=period)
+    variations = [symbol]
+    
+    # Alternatif sembol varyasyonları üret
+    stripped = symbol.replace(".IS", "").strip()
+    if ".IS" not in symbol:
+        variations.append(f"{stripped}.IS") # THYAO -> THYAO.IS
+    else:
+        variations.append(stripped) # THYAO.IS -> THYAO
         
-        if df.empty:
-            return None, None, None, None
+    for ticker in variations:
+        try:
+            stock = yf.Ticker(ticker)
+            df = stock.history(period=period)
             
-        # MultiIndex sütun yapısını düzelt (yfinance bazen böyle döner)
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
+            if not df.empty:
+                # Başarılı olduysa veriyi ve kullanılan sembolü döndür
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                return df, stock.financials, stock.balance_sheet, stock.info, ticker
+        except Exception:
+            continue
             
-        return df, stock.financials, stock.balance_sheet, stock.info
-    except Exception as e:
-        print(f"Hata: {e}")
-        return None, None, None, None
+    # Hiçbir varyasyon çalışmadıysa
+    return None, None, None, None, None
 
 def process_indicators(df):
     """
@@ -58,9 +68,7 @@ def process_indicators(df):
         if bb is not None:
             df = pd.concat([df, bb], axis=1)
             # Sütun isimlerini standartlaştır
-            cols_map = {c: c.replace('BBL_20_2.0', 'BB_Lower').replace('BBU_20_2.0', 'BB_Upper').replace('BBM_20_2.0', 'BB_Mid') for c in df.columns if 'BB' in c}
-            # Basit rename işlemi, kütüphane versiyonuna göre isimler değişebilir, bu yüzden garantiye alalım
-            df.rename(columns=lambda x: x.replace('BBL_20_2.0', 'BB_Lower').replace('BBU_20_2.0', 'BB_Upper'), inplace=True)
+            df.rename(columns=lambda x: x.replace('BBL_20_2.0', 'BB_Lower').replace('BBU_20_2.0', 'BB_Upper').replace('BBM_20_2.0', 'BB_Mid'), inplace=True)
 
         # 5. ATR ve Trailing Stop
         df['ATR'] = ta.atr(df['High'], df['Low'], df['Close'], length=14)
@@ -91,16 +99,10 @@ def process_indicators(df):
 
 def process_symbol(input_symbol):
     """
-    Girilen sembolü BIST formatına veya global formata uygun hale getirir.
+    Kullanıcı girdisini temizler. (Artık zorla .IS eklemiyor, bunu fetch_stock_data hallediyor)
     """
     if not input_symbol: return "THYAO.IS"
-    s = input_symbol.upper().strip()
-    if s.endswith(".IS") or "-" in s:
-        return s
-    # BIST hisseleri genelde 5 karakterden kısa ve rakam içermez (istisnalar olabilir ama genel kural)
-    if len(s) <= 5 and not any(char.isdigit() for char in s):
-         return f"{s}.IS"
-    return s
+    return input_symbol.upper().strip()
 
 def slice_data_by_period(df, period_str):
     """

@@ -130,19 +130,17 @@ if df_full is not None:
     with col_fund2:
         st.markdown("#### 🤖 Teknik Sinyaller")
         signals = []
-        if last_rsi < 30: signals.append("🟢 RSI: Aşırı satım bölgesinde, tepki yükselişi gelebilir.")
-        elif last_rsi > 70: signals.append("🔴 RSI: Aşırı alım bölgesinde, kar satışı gelebilir.")
+        if last_rsi < 30: signals.append("🟢 RSI: Aşırı satım bölgesinde (Tepki Gelebilir)")
+        elif last_rsi > 70: signals.append("🔴 RSI: Aşırı alım bölgesinde (Düzeltme Riski)")
         
-        if last_close > df_view['EMA200'].iloc[-1]: signals.append("🟢 Trend: Uzun vadeli ortalamanın üzerinde (Pozitif).")
-        else: signals.append("🔴 Trend: Uzun vadeli ortalamanın altında (Negatif).")
+        if last_close > df_view['EMA200'].iloc[-1]: signals.append("🟢 Trend: Uzun vadeli ortalamanın üzerinde (Pozitif)")
+        else: signals.append("🔴 Trend: Uzun vadeli ortalamanın altında (Negatif)")
         
-        macd = df_view['MACD'].iloc[-1]
-        signal = df_view['MACD_Signal'].iloc[-1]
-        if macd > signal: signals.append("🟢 MACD: Alıcılı seyir (Pozitif Kesişim).")
-        else: signals.append("🔴 MACD: Satıcılı seyir (Negatif Kesişim).")
+        if df_view['MACD'].iloc[-1] > df_view['MACD_Signal'].iloc[-1]: signals.append("🟢 MACD: Alıcılı seyir (Pozitif Kesişim)")
+        else: signals.append("🔴 MACD: Satıcılı seyir (Negatif Kesişim)")
         
         if fair_value and last_close < fair_value:
-             signals.append(f"💎 Değerleme: Hisse adil değerinin altında (%{upside:.1f} potansiyel).")
+             signals.append(f"💎 Değerleme: Hisse adil değerinin altında (%{upside:.1f} potansiyel)")
 
         if not signals:
             st.write("Belirgin bir teknik sinyal bulunmuyor, piyasa nötr.")
@@ -151,4 +149,5 @@ if df_full is not None:
                 st.write(f"- {s}")
 
 else:
-    st.info("Analiz yapmak için lütfen geçerli bir hisse senedi kodu girin.")
+    st.error(f"⚠️ '{symbol}' için veri bulunamadı veya sunucu erişim sorunu var.")
+    st.info("Olası Çözümler:\n- Hisse kodunu doğru yazdığınızdan emin olun (Örn: THYAO, GARAN).\n- Yabancı hisseler için kodu tam yazın (Örn: AAPL, TSLA).\n- Çok kısa süreli (sunucu kaynaklı) bir bağlantı sorunu olabilir, sayfayı yenileyip tekrar deneyin.")

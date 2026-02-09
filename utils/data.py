@@ -5,36 +5,42 @@ import numpy as np
 from scipy.signal import argrelextrema
 from datetime import timedelta
 import streamlit as st
+import requests
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)  # Cache süresini hata durumunda hızlı düzelmesi için kısalttık
 def fetch_stock_data(symbol, period="max"):
     """
-    Hisse verilerini çeker. Akıllı yeniden deneme (retry) mekanizması içerir.
-    Önce verilen sembolü dener, olmazsa .IS ekleyip/çıkarıp tekrar dener.
+    Hisse verilerini çeker. Akıllı yeniden deneme (retry) ve User-Agent koruması içerir.
     """
+    # Yahoo Finance Bot Korumasını Aşmak İçin Oturum Açıyoruz
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    })
+
     variations = [symbol]
     
     # Alternatif sembol varyasyonları üret
     stripped = symbol.replace(".IS", "").strip()
     if ".IS" not in symbol:
-        variations.append(f"{stripped}.IS") # THYAO -> THYAO.IS
+        variations.append(f"{stripped}.IS") 
     else:
-        variations.append(stripped) # THYAO.IS -> THYAO
+        variations.append(stripped)
         
     for ticker in variations:
         try:
-            stock = yf.Ticker(ticker)
+            # Session parametresini iletiyoruz
+            stock = yf.Ticker(ticker, session=session)
             df = stock.history(period=period)
             
             if not df.empty:
-                # Başarılı olduysa veriyi ve kullanılan sembolü döndür
                 if isinstance(df.columns, pd.MultiIndex):
                     df.columns = df.columns.get_level_values(0)
                 return df, stock.financials, stock.balance_sheet, stock.info, ticker
-        except Exception:
+        except Exception as e:
+            print(f"Deneme başarısız ({ticker}): {e}")
             continue
             
-    # Hiçbir varyasyon çalışmadıysa
     return None, None, None, None, None
 
 def process_indicators(df):

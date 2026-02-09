@@ -1,7 +1,8 @@
 streamlit
-yfinance
+yfinance>=0.2.36
 pandas
 pandas_ta
 plotly
 scipy
 numpy
+requests
